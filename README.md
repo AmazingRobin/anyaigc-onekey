@@ -19,7 +19,7 @@
 
 ```bash
 # 默认弹出菜单，回车即同时安装 Claude Code + Codex
-curl -fsSL https://docs.anyaigc.com/install.sh | bash
+curl -fsSL docs.anyaigc.com/install.sh | bash
 ```
 
 指定安装目标（跳过菜单）：
@@ -40,7 +40,7 @@ OPENAI_API_KEY=sk-xxx ANTHROPIC_API_KEY=sk-xxx \
 ### Windows（PowerShell / CMD 均可）
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://docs.anyaigc.com/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm docs.anyaigc.com/install.ps1 | iex"
 ```
 
 指定安装目标（跳过菜单）：
