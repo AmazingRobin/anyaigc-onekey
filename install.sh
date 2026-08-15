@@ -3,16 +3,16 @@
 # 自动安装 Node.js + Codex / Claude Code，并写入 AnyAIGC 接口配置。
 #
 # 一行命令使用方式:
-#   curl -fsSL https://docs.anyaigc.com/install.sh | bash
+#   curl -fsSL https://www.anyaigc.ai/install.sh | bash
 #
 # 指定安装目标 (跳过菜单):
-#   curl -fsSL https://docs.anyaigc.com/install.sh | bash -s both     # 同时安装 (默认)
-#   curl -fsSL https://docs.anyaigc.com/install.sh | bash -s claude   # 仅 Claude Code
-#   curl -fsSL https://docs.anyaigc.com/install.sh | bash -s codex    # 仅 Codex
+#   curl -fsSL https://www.anyaigc.ai/install.sh | bash -s both     # 同时安装 (默认)
+#   curl -fsSL https://www.anyaigc.ai/install.sh | bash -s claude   # 仅 Claude Code
+#   curl -fsSL https://www.anyaigc.ai/install.sh | bash -s codex    # 仅 Codex
 #
 # 非交互模式 (无终端时通过环境变量提供 Key):
 #   OPENAI_API_KEY=sk-xxx ANTHROPIC_API_KEY=sk-xxx \
-#     curl -fsSL https://docs.anyaigc.com/install.sh | bash -s both
+#     curl -fsSL https://www.anyaigc.ai/install.sh | bash -s both
 
 set -u
 
@@ -22,7 +22,7 @@ set -u
 NODE_VERSION="22.11.0"                                          # 安装的 Node 版本 (LTS)
 NPM_REGISTRY="https://registry.npmmirror.com"                   # npm 镜像 (国内加速)
 NODE_MIRROR="https://registry.npmmirror.com/-/binary/node"      # Node 二进制镜像 (兜底下载)
-BASE_URL="https://anyaigc.com"                                  # AnyAIGC 接口地址
+BASE_URL="https://anyaigc.ai"                                   # AnyAIGC 接口地址
 SMALL_MODEL="claude-haiku-4-5-20251001"
 CODEX_MODEL="gpt-5.5"
 

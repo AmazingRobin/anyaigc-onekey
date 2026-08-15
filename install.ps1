@@ -2,13 +2,13 @@
 # 自动安装 Node.js + Codex / Claude Code，并写入 AnyAIGC 接口配置。
 #
 # 一行命令使用方式 (PowerShell 或 CMD 均可):
-#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://docs.anyaigc.com/install.ps1 | iex"
+#   powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://www.anyaigc.ai/install.ps1 | iex"
 #   回车后会弹出菜单，默认 (回车) = 同时安装 Claude Code + Codex
 #
 # 指定安装目标 (跳过菜单):
-#   & ([scriptblock]::Create((irm https://docs.anyaigc.com/install.ps1))) both     # 同时安装 (默认)
-#   & ([scriptblock]::Create((irm https://docs.anyaigc.com/install.ps1))) claude   # 仅 Claude Code
-#   & ([scriptblock]::Create((irm https://docs.anyaigc.com/install.ps1))) codex    # 仅 Codex
+#   & ([scriptblock]::Create((irm https://www.anyaigc.ai/install.ps1))) both     # 同时安装 (默认)
+#   & ([scriptblock]::Create((irm https://www.anyaigc.ai/install.ps1))) claude   # 仅 Claude Code
+#   & ([scriptblock]::Create((irm https://www.anyaigc.ai/install.ps1))) codex    # 仅 Codex
 
 param(
   [string]$Product = ""
@@ -29,7 +29,7 @@ try {
 $NodeVersion   = "22.11.0"                                   # 自动安装的 Node 版本 (LTS)
 $NpmRegistry   = "https://registry.npmmirror.com"            # npm 镜像 (国内加速)
 $NodeMirror    = "https://registry.npmmirror.com/-/binary/node"  # Node MSI 下载镜像 (winget 不可用时兜底)
-$BaseUrl       = "https://anyaigc.com"                       # AnyAIGC 接口地址
+$BaseUrl       = "https://anyaigc.ai"                        # AnyAIGC 接口地址
 $SmallModel    = "claude-haiku-4-5-20251001"
 $CodexModel    = "gpt-5.5"
 

@@ -1,8 +1,10 @@
 # AnyAIGC 一键安装配置工具
 
-一条命令，自动为你安装并配置 [Claude Code](https://www.anthropic.com/claude-code) 与 [Codex](https://openai.com/codex/)，并写入 [AnyAIGC](https://anyaigc.com) 接口配置，开箱即用。
+[English](./README.en.md) ｜ 简体中文
 
-> 官网：<https://anyaigc.com> ｜ 文档与脚本：<https://docs.anyaigc.com>
+一条命令，自动为你安装并配置 [Claude Code](https://www.anthropic.com/claude-code) 与 [Codex](https://openai.com/codex/)，并写入 [AnyAIGC](https://anyaigc.ai) 接口配置，开箱即用。
+
+> 官网：<https://anyaigc.ai>
 
 ## 功能特性
 
@@ -19,36 +21,36 @@
 
 ```bash
 # 默认弹出菜单，回车即同时安装 Claude Code + Codex
-curl -fsSL docs.anyaigc.com/install.sh | bash
+curl -fsSL https://www.anyaigc.ai/install.sh | bash
 ```
 
 指定安装目标（跳过菜单）：
 
 ```bash
-curl -fsSL https://docs.anyaigc.com/install.sh | bash -s both     # 同时安装（默认）
-curl -fsSL https://docs.anyaigc.com/install.sh | bash -s claude   # 仅 Claude Code
-curl -fsSL https://docs.anyaigc.com/install.sh | bash -s codex    # 仅 Codex
+curl -fsSL https://www.anyaigc.ai/install.sh | bash -s both     # 同时安装（默认）
+curl -fsSL https://www.anyaigc.ai/install.sh | bash -s claude   # 仅 Claude Code
+curl -fsSL https://www.anyaigc.ai/install.sh | bash -s codex    # 仅 Codex
 ```
 
 非交互模式（无终端时通过环境变量提供 Key）：
 
 ```bash
 OPENAI_API_KEY=sk-xxx ANTHROPIC_API_KEY=sk-xxx \
-  curl -fsSL https://docs.anyaigc.com/install.sh | bash -s both
+  curl -fsSL https://www.anyaigc.ai/install.sh | bash -s both
 ```
 
 ### Windows（PowerShell / CMD 均可）
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm docs.anyaigc.com/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://www.anyaigc.ai/install.ps1 | iex"
 ```
 
 指定安装目标（跳过菜单）：
 
 ```powershell
-& ([scriptblock]::Create((irm https://docs.anyaigc.com/install.ps1))) both     # 同时安装（默认）
-& ([scriptblock]::Create((irm https://docs.anyaigc.com/install.ps1))) claude   # 仅 Claude Code
-& ([scriptblock]::Create((irm https://docs.anyaigc.com/install.ps1))) codex    # 仅 Codex
+& ([scriptblock]::Create((irm https://www.anyaigc.ai/install.ps1))) both     # 同时安装（默认）
+& ([scriptblock]::Create((irm https://www.anyaigc.ai/install.ps1))) claude   # 仅 Claude Code
+& ([scriptblock]::Create((irm https://www.anyaigc.ai/install.ps1))) codex    # 仅 Codex
 ```
 
 ## 安装流程
@@ -65,7 +67,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm docs.anyaigc.com/ins
 
 | 项目 | 值 |
 | --- | --- |
-| 接口地址 | `https://anyaigc.com` |
+| 接口地址 | `https://anyaigc.ai` |
 | Claude 快速模型 | `claude-haiku-4-5-20251001` |
 | Codex 模型 | `gpt-5.5` |
 | npm 镜像 | `https://registry.npmmirror.com` |
@@ -96,17 +98,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm docs.anyaigc.com/ins
 可以，安装时通过参数 `claude` 或 `codex` 指定即可。
 
 **Q：从哪里获取 API Key？**
-在 [AnyAIGC 官网](https://anyaigc.com) 注册并获取，格式为 `sk-xxx`。
+在 [AnyAIGC 官网](https://anyaigc.ai) 注册并获取，格式为 `sk-xxx`。
 
 ## 关于 AnyAIGC
 
-**AnyAIGC** 是面向国内开发者的 AI 模型聚合服务，通过统一的接口地址（`https://anyaigc.com`）兼容 Anthropic Claude 与 OpenAI 等主流模型。你只需要一个 API Key，就能在 Claude Code、Codex 等主流 AI 编程工具中直接使用，无需自行处理网络、镜像与环境变量等繁琐配置。
+**AnyAIGC** 是面向国内开发者的 AI 模型聚合服务，通过统一的接口地址（`https://anyaigc.ai`）兼容 Anthropic Claude 与 OpenAI 等主流模型。你只需要一个 API Key，就能在 Claude Code、Codex 等主流 AI 编程工具中直接使用，无需自行处理网络、镜像与环境变量等繁琐配置。
 
-- 🔗 官网：<https://anyaigc.com>
-- 📘 文档：<https://docs.anyaigc.com>
+- 🔗 官网：<https://anyaigc.ai>
 
 ## 相关链接
 
-- AnyAIGC 官网：<https://anyaigc.com>
-- 文档中心：<https://docs.anyaigc.com>
-- 安装脚本：<https://docs.anyaigc.com/install.sh> ｜ <https://docs.anyaigc.com/install.ps1>
+- AnyAIGC 官网：<https://anyaigc.ai>
+- 安装脚本：<https://www.anyaigc.ai/install.sh> ｜ <https://www.anyaigc.ai/install.ps1>
