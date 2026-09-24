@@ -181,24 +181,129 @@ function Ensure-Node {
 }
 
 # ---------------------------------------------------------------------------
-# 全局安装指定 npm 包 (已安装则跳过)
+# 全局安装 / 卸载 npm 包的底层封装
 # ---------------------------------------------------------------------------
-function Ensure-NpmPackage($pkgName) {
-  Write-Step "`n[检查] 检查 $pkgName 安装状态..."
+function Invoke-NpmInstallGlobal($pkgName) {
   Initialize-NpmEnvironment
   $npm = Get-NpmCommand
-  $listed = (& $npm list -g $pkgName --depth=0 2>$null | Out-String)
-  if ($listed -match [regex]::Escape($pkgName)) {
-    Write-Ok "$pkgName 已安装，跳过"
-    return
-  }
-  Write-Step "[安装] 正在全局安装 $pkgName ..."
   & $npm install -g $pkgName --registry $NpmRegistry
-  if ($LASTEXITCODE -ne 0) {
-    throw "$pkgName 安装失败，可稍后手动执行: npm install -g $pkgName"
-  } else {
-    Write-Ok "$pkgName 安装完成"
+  return ($LASTEXITCODE -eq 0)
+}
+
+function Invoke-NpmUninstallGlobal($pkgName) {
+  Initialize-NpmEnvironment
+  $npm = Get-NpmCommand
+  & $npm uninstall -g $pkgName 2>$null | Out-Null
+}
+
+# 命令是否真的能跑 (存在于 PATH 但依赖损坏时 --version 会非 0 退出)
+function Test-CommandRunnable($cmdName) {
+  if (-not (Get-Command $cmdName -ErrorAction SilentlyContinue)) { return $false }
+  try {
+    & $cmdName --version *> $null
+    return ($LASTEXITCODE -eq 0)
+  } catch {
+    return $false
   }
+}
+
+# ---------------------------------------------------------------------------
+# 全局安装指定 npm 包
+#   - 未安装: npm install -g
+#   - 已安装但跑不动: 先 uninstall 再重装自愈 (npm install 对这种半损坏状态是 no-op)
+#   - 已安装且能跑: 跳过 (更新场景交给专用的 claude/codex 函数处理)
+# ---------------------------------------------------------------------------
+function Ensure-NpmPackage($pkgName, $cmdName) {
+  Write-Step "`n[检查] 检查 $pkgName 安装状态..."
+  Initialize-NpmEnvironment
+
+  if (Get-Command $cmdName -ErrorAction SilentlyContinue) {
+    if (Test-CommandRunnable $cmdName) {
+      Write-Ok "$pkgName 已安装，跳过"
+      return
+    }
+    Write-Warn "[提示] 检测到 $cmdName 已安装但无法运行，尝试自愈 (卸载后重装)..."
+    Invoke-NpmUninstallGlobal $pkgName
+  }
+
+  Write-Step "[安装] 正在全局安装 $pkgName ..."
+  if (-not (Invoke-NpmInstallGlobal $pkgName)) {
+    throw "$pkgName 安装失败，可稍后手动执行: npm install -g $pkgName"
+  }
+  Write-Ok "$pkgName 安装完成"
+}
+
+# ---------------------------------------------------------------------------
+# Claude Code 专用: Windows 上没有官方原生 installer (官方脚本是 bash)，
+# 所以安装走纯 npm；但已安装时优先调用 `claude update` 自升级。
+# ---------------------------------------------------------------------------
+$ClaudePkg = "@anthropic-ai/claude-code"
+
+function Ensure-Claude {
+  Write-Step "`n[检查] 检查 Claude Code 安装状态..."
+  Initialize-NpmEnvironment
+
+  if (Get-Command claude -ErrorAction SilentlyContinue) {
+    if (Test-CommandRunnable "claude") {
+      Write-Ok "claude 已安装，尝试更新到最新版本..."
+      & claude update *> $null
+      if ($LASTEXITCODE -eq 0) {
+        Write-Ok "claude 已更新"
+      } else {
+        Write-Warn "[提示] claude update 失败，改用 npm 更新..."
+        if (-not (Invoke-NpmInstallGlobal $ClaudePkg)) {
+          Write-Warn "[提示] npm 更新失败，可稍后手动执行: npm install -g $ClaudePkg"
+        }
+      }
+      return
+    }
+    Write-Warn "[提示] 检测到 claude 已安装但无法运行，尝试自愈 (卸载后重装)..."
+    Invoke-NpmUninstallGlobal $ClaudePkg
+  }
+
+  Write-Step "[安装] 正在全局安装 $ClaudePkg ..."
+  if (-not (Invoke-NpmInstallGlobal $ClaudePkg)) {
+    throw "Claude Code 安装失败，可稍后手动执行: npm install -g $ClaudePkg"
+  }
+  Write-Ok "Claude Code 安装完成"
+}
+
+# ---------------------------------------------------------------------------
+# Codex 专用: 只有 npm 分发，无官方 installer。
+# 已安装时优先调用 `codex update` 自升级；跑不动时先卸载再重装自愈。
+# ---------------------------------------------------------------------------
+$CodexPkg = "@openai/codex"
+
+function Ensure-Codex {
+  Write-Step "`n[检查] 检查 Codex 安装状态..."
+  Initialize-NpmEnvironment
+
+  if (Get-Command codex -ErrorAction SilentlyContinue) {
+    if (Test-CommandRunnable "codex") {
+      Write-Ok "codex 已安装，尝试更新到最新版本..."
+      & codex update *> $null
+      if ($LASTEXITCODE -eq 0) {
+        Write-Ok "codex 已更新"
+      } else {
+        Write-Warn "[提示] codex update 失败，改用 npm 更新..."
+        if (-not (Invoke-NpmInstallGlobal $CodexPkg)) {
+          Write-Warn "[提示] npm 更新失败，可稍后手动执行: npm install -g $CodexPkg"
+        }
+      }
+      return
+    }
+    # codex 的 npm 包是「主包(纯 JS launcher) + 平台二进制 optional 依赖」模式，
+    # 平台二进制缺失时命令跑不起来；此时普通 npm install 是 no-op，必须先卸载
+    # 清掉残骸再重装才能补回完整依赖树。
+    Write-Warn "[提示] 检测到 codex 已安装但无法运行，尝试自愈 (卸载后重装)..."
+    Invoke-NpmUninstallGlobal $CodexPkg
+  }
+
+  Write-Step "[安装] 正在全局安装 $CodexPkg ..."
+  if (-not (Invoke-NpmInstallGlobal $CodexPkg)) {
+    throw "Codex 安装失败，可稍后手动执行: npm install -g $CodexPkg"
+  }
+  Write-Ok "Codex 安装完成"
 }
 
 # ---------------------------------------------------------------------------
@@ -250,7 +355,7 @@ function Ask-YesDefault($prompt) {
 # 配置 Claude Code
 # ---------------------------------------------------------------------------
 function Configure-Claude($presetKey) {
-  Ensure-NpmPackage "@anthropic-ai/claude-code"
+  Ensure-Claude
 
   Write-Warn "[提示] 粘贴方式: 鼠标右键 或 Shift+Insert"
   $key = if ($presetKey) { $presetKey } else { Read-ApiKeyPrompt "请输入你的 Claude API Key (sk-xxx)" }
@@ -286,7 +391,7 @@ function Configure-Claude($presetKey) {
 # 配置 Codex
 # ---------------------------------------------------------------------------
 function Configure-Codex($presetKey) {
-  Ensure-NpmPackage "@openai/codex"
+  Ensure-Codex
 
   Write-Warn "[提示] 粘贴方式: 鼠标右键 或 Shift+Insert"
   $key = if ($presetKey) { $presetKey } else { Read-ApiKeyPrompt "请输入你的 OpenAI API Key (sk-xxx)" }

@@ -345,36 +345,167 @@ ensure_node() {
 }
 
 # ---------------------------------------------------------------------------
-# 2. 全局安装 npm 包 (已装则跳过；按权限选择是否 sudo)
+# 2. 全局安装 / 升级 npm 包
+#    - 未安装: 走 npm install -g
+#    - 已安装且能跑: 跳过 (更新场景交给专用的 claude/codex 处理函数)
+#    - 已安装但 --version 跑不动 (如 codex 平台二进制 optional 依赖缺失):
+#      npm install 是 no-op，需要先 uninstall 再 install 才能自愈
+#    (按权限选择是否 sudo)
 # ---------------------------------------------------------------------------
-ensure_npm_package() {
-  local pkg="$1" cmd_name="$2"
-  step $'\n[检查] 检查 '"$pkg"' 安装状态...'
-  if command -v "$cmd_name" >/dev/null 2>&1; then
-    ok "$cmd_name 已安装，跳过 ($("$cmd_name" --version 2>/dev/null || echo unknown))"
-    persist_npm_path "$(command -v npm)"
-    return
-  fi
-
-  step "[安装] 正在全局安装 $pkg ..."
-  local npm_cmd; npm_cmd="$(command -v npm)"
+npm_install_global() {
+  local pkg="$1" npm_cmd; npm_cmd="$(command -v npm)"
   if [ "$(id -u)" -eq 0 ]; then
     "$npm_cmd" install -g "$pkg" --registry "$NPM_REGISTRY" --quiet
   elif "$npm_cmd" install -g "$pkg" --registry "$NPM_REGISTRY" --quiet 2>/dev/null; then
-    : # 普通权限成功
+    return 0
   elif [ -n "$SUDO_CMD" ]; then
     warn "[提示] 普通权限安装失败，尝试 sudo..."
     "$SUDO_CMD" "$npm_cmd" install -g "$pkg" --registry "$NPM_REGISTRY" --quiet
   else
+    return 1
+  fi
+}
+
+npm_uninstall_global() {
+  local pkg="$1" npm_cmd; npm_cmd="$(command -v npm)"
+  if [ "$(id -u)" -eq 0 ]; then
+    "$npm_cmd" uninstall -g "$pkg" --quiet 2>/dev/null
+  elif "$npm_cmd" uninstall -g "$pkg" --quiet 2>/dev/null; then
+    return 0
+  elif [ -n "$SUDO_CMD" ]; then
+    "$SUDO_CMD" "$npm_cmd" uninstall -g "$pkg" --quiet 2>/dev/null
+  fi
+  return 0
+}
+
+ensure_npm_package() {
+  local pkg="$1" cmd_name="$2"
+  step $'\n[检查] 检查 '"$pkg"' 安装状态...'
+
+  if command -v "$cmd_name" >/dev/null 2>&1; then
+    if "$cmd_name" --version >/dev/null 2>&1; then
+      ok "$cmd_name 已安装，跳过 ($("$cmd_name" --version 2>/dev/null || echo unknown))"
+      persist_npm_path "$(command -v npm)"
+      return 0
+    fi
+    # 命令存在但跑不动 (如 codex 缺失平台二进制 optional 依赖): 普通 npm install
+    # 是 no-op，需要先卸载清掉残骸再重装才能补回完整依赖树。
+    warn "[提示] 检测到 $cmd_name 已安装但无法运行，尝试自愈 (卸载后重装)..."
+    npm_uninstall_global "$pkg"
+  fi
+
+  step "[安装] 正在全局安装 $pkg ..."
+  if ! npm_install_global "$pkg"; then
     err "$pkg 安装失败，可手动执行: npm install -g $pkg"
     return 1
   fi
 
-  persist_npm_path "$npm_cmd"
+  persist_npm_path "$(command -v npm)"
   if command -v "$cmd_name" >/dev/null 2>&1; then
     ok "$pkg 安装完成"
   else
     err "$cmd_name 不在 PATH 中，请重新打开终端后再试。"
+    return 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Claude Code 专用: 官方安装脚本优先，失败/已装时降级或走升级路径
+#   - 未安装: 先跑官方 curl|bash 安装脚本，失败再 npm install 兜底
+#   - 已安装: 优先 `claude update` 自升级，失败再 npm install 兜底
+# ---------------------------------------------------------------------------
+CLAUDE_PKG="@anthropic-ai/claude-code"
+
+claude_official_install() {
+  step "[安装] 正在通过官方脚本安装 Claude Code..."
+  local tmp; tmp="$(mktemp)"
+  if curl -fsSL https://claude.ai/install.sh -o "$tmp" && bash "$tmp"; then
+    rm -f "$tmp"
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
+}
+
+ensure_claude() {
+  step $'\n[检查] 检查 Claude Code 安装状态...'
+
+  if command -v claude >/dev/null 2>&1; then
+    if claude --version >/dev/null 2>&1; then
+      ok "claude 已安装，尝试更新到最新版本..."
+      if claude update >/dev/null 2>&1; then
+        ok "claude 已更新 ($(claude --version 2>/dev/null || echo unknown))"
+      else
+        warn "[提示] claude update 失败，改用 npm 更新..."
+        npm_install_global "$CLAUDE_PKG" || warn "[提示] npm 更新失败，可稍后手动执行: npm install -g $CLAUDE_PKG"
+      fi
+      persist_npm_path "$(command -v npm)"
+      return 0
+    fi
+    warn "[提示] 检测到 claude 已安装但无法运行，尝试自愈 (卸载后重装)..."
+    npm_uninstall_global "$CLAUDE_PKG"
+  fi
+
+  if claude_official_install; then
+    ok "Claude Code 安装完成 (官方脚本)"
+  else
+    warn "[提示] 官方安装脚本失败或不可达，改用 npm 安装..."
+    step "[安装] 正在全局安装 $CLAUDE_PKG ..."
+    if ! npm_install_global "$CLAUDE_PKG"; then
+      err "Claude Code 安装失败，可手动执行: npm install -g $CLAUDE_PKG"
+      return 1
+    fi
+  fi
+
+  persist_npm_path "$(command -v npm)"
+  if command -v claude >/dev/null 2>&1; then
+    ok "claude 已就绪 ($(claude --version 2>/dev/null || echo unknown))"
+  else
+    err "claude 不在 PATH 中，请重新打开终端后再试。"
+    return 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Codex 专用: 只有 npm 分发，无官方 shell installer
+#   - 未安装: npm install -g (跑不动时先 uninstall 再重装自愈)
+#   - 已安装: 优先 `codex update` 自升级，失败再 npm install 兜底
+# ---------------------------------------------------------------------------
+CODEX_PKG="@openai/codex"
+
+ensure_codex() {
+  step $'\n[检查] 检查 Codex 安装状态...'
+
+  if command -v codex >/dev/null 2>&1; then
+    if codex --version >/dev/null 2>&1; then
+      ok "codex 已安装，尝试更新到最新版本..."
+      if codex update >/dev/null 2>&1; then
+        ok "codex 已更新 ($(codex --version 2>/dev/null || echo unknown))"
+      else
+        warn "[提示] codex update 失败，改用 npm 更新..."
+        npm_install_global "$CODEX_PKG" || warn "[提示] npm 更新失败，可稍后手动执行: npm install -g $CODEX_PKG"
+      fi
+      persist_npm_path "$(command -v npm)"
+      return 0
+    fi
+    # codex 的 npm 包是「主包(纯 JS launcher) + 平台二进制 optional 依赖」模式，
+    # 平台二进制缺失时命令跑不起来；此时普通 npm install 是 no-op (npm 认为主包
+    # 已是最新，不会补回 optional 依赖)，必须先卸载清掉残骸再重装。
+    warn "[提示] 检测到 codex 已安装但无法运行，尝试自愈 (卸载后重装)..."
+    npm_uninstall_global "$CODEX_PKG"
+  fi
+
+  step "[安装] 正在全局安装 $CODEX_PKG ..."
+  if ! npm_install_global "$CODEX_PKG"; then
+    err "Codex 安装失败，可手动执行: npm install -g $CODEX_PKG"
+    return 1
+  fi
+
+  persist_npm_path "$(command -v npm)"
+  if command -v codex >/dev/null 2>&1; then
+    ok "codex 已就绪 ($(codex --version 2>/dev/null || echo unknown))"
+  else
+    err "codex 不在 PATH 中，请重新打开终端后再试。"
     return 1
   fi
 }
@@ -461,7 +592,7 @@ ask_yes_default() {
 # 配置 Claude Code
 # ---------------------------------------------------------------------------
 configure_claude() {
-  ensure_npm_package "@anthropic-ai/claude-code" "claude" || return 1
+  ensure_claude || return 1
 
   local key="${1:-}"
   if [ -z "$key" ]; then
@@ -484,7 +615,7 @@ configure_claude() {
 # 配置 Codex (保留用户已有的其它 TOML 配置段)
 # ---------------------------------------------------------------------------
 configure_codex() {
-  ensure_npm_package "@openai/codex" "codex" || return 1
+  ensure_codex || return 1
 
   local key="${1:-}"
   if [ -z "$key" ]; then
